@@ -13,8 +13,12 @@
   const newItemBtn = document.getElementById('new-item-btn');
   const itemsList = document.getElementById('items-list');
   const emptyAdmin = document.getElementById('empty-admin');
+  const categoryOptions = document.getElementById('category-options');
 
-  const CATEGORIES = ['Bicicletas', 'Muebles', 'Juguetes y otros'];
+  // Starting suggestions only — category is free text (no fixed list in
+  // the database), so any label typed here becomes a real category. These
+  // seed the <datalist> alongside whatever categories already exist.
+  const CATEGORY_SEED = ['Bicicletas', 'Muebles', 'Juguetes y otros'];
 
   function showMsg(el, text, type) {
     el.innerHTML = text ? `<div class="msg ${type}">${text}</div>` : '';
@@ -112,6 +116,19 @@
     emptyAdmin.hidden = true;
     itemsList.innerHTML = items.map(rowHtml).join('');
     items.forEach((item) => wireRow(item.id));
+    updateCategoryOptions();
+  }
+
+  // Keeps the <datalist> suggestions in sync with whatever categories are
+  // actually in use, plus the starting seed list, so a category typed on
+  // one item shows up as a suggestion on the others right away.
+  function updateCategoryOptions() {
+    const known = new Set(CATEGORY_SEED);
+    items.forEach((it) => it.category && known.add(it.category));
+    categoryOptions.innerHTML = Array.from(known)
+      .sort((a, b) => a.localeCompare(b, 'es'))
+      .map((c) => `<option value="${escapeAttr(c)}">`)
+      .join('');
   }
 
   function sortedPhotos(item) {
@@ -128,9 +145,6 @@
   }
 
   function rowHtml(item) {
-    const catOptions = CATEGORIES.map(
-      (c) => `<option value="${escapeHtml(c)}" ${c === item.category ? 'selected' : ''}>${escapeHtml(c)}</option>`
-    ).join('');
     const photos = sortedPhotos(item);
     const thumbs = photos.length
       ? photos.map(photoThumbHtml).join('')
@@ -151,7 +165,7 @@
           </div>
           <div>
             <label>Categoría</label>
-            <select data-field="category">${catOptions}</select>
+            <input type="text" data-field="category" list="category-options" value="${escapeAttr(item.category)}" placeholder="Ej: Electrodomésticos">
           </div>
           <div>
             <label>Precio (ARS)</label>
@@ -202,7 +216,7 @@
       status.textContent = 'Guardando…';
       const payload = {
         name: row.querySelector('[data-field="name"]').value,
-        category: row.querySelector('[data-field="category"]').value,
+        category: row.querySelector('[data-field="category"]').value.trim(),
         price: Number(row.querySelector('[data-field="price"]').value) || 0,
         condition: row.querySelector('[data-field="condition"]').value,
         sort_order: Number(row.querySelector('[data-field="sort_order"]').value) || 0,
