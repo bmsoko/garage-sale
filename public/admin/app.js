@@ -89,7 +89,11 @@
 
   async function loadItems() {
     itemsList.innerHTML = '<p>Cargando…</p>';
-    const { data, error } = await sb.from('items').select('*').order('sort_order');
+    const { data, error } = await sb
+      .from('items')
+      .select('*, item_photos(id,url,sort_order)')
+      .order('sort_order')
+      .order('sort_order', { foreignTable: 'item_photos' });
     if (error) {
       showMsg(dashboardMsg, `Error cargando artículos: ${escapeHtml(error.message)}`, 'error');
       itemsList.innerHTML = '';
@@ -110,18 +114,35 @@
     items.forEach((item) => wireRow(item.id));
   }
 
+  function sortedPhotos(item) {
+    return (item.item_photos || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  }
+
+  function photoThumbHtml(photo) {
+    return `
+      <div class="photo-thumb" data-photo-id="${photo.id}">
+        <img src="${photo.url}" alt="">
+        <button type="button" class="photo-remove" data-role="remove-photo" title="Eliminar foto">✕</button>
+      </div>
+    `;
+  }
+
   function rowHtml(item) {
     const catOptions = CATEGORIES.map(
       (c) => `<option value="${escapeHtml(c)}" ${c === item.category ? 'selected' : ''}>${escapeHtml(c)}</option>`
     ).join('');
-    const thumb = item.image_url
-      ? `<img class="thumb" src="${item.image_url}" alt="">`
+    const photos = sortedPhotos(item);
+    const thumbs = photos.length
+      ? photos.map(photoThumbHtml).join('')
       : `<div class="thumb-placeholder">📦</div>`;
     return `
       <div class="item-row" data-id="${item.id}">
-        <div class="thumb-col">
-          ${thumb}
-          <input type="file" accept="image/*,video/*" data-role="file">
+        <div class="photos-col">
+          <div class="photos-strip" data-role="photos-strip">${thumbs}</div>
+          <label class="add-photo-btn">
+            + Agregar fotos
+            <input type="file" accept="image/*" multiple data-role="add-photos" hidden>
+          </label>
         </div>
         <div class="fields">
           <div class="span-2">
@@ -149,8 +170,14 @@
             <textarea data-field="description" rows="2">${escapeHtml(item.description || '')}</textarea>
           </div>
           <div class="span-2">
-            <label>URL de video (opcional)</label>
-            <input type="text" data-field="video_url" value="${escapeAttr(item.video_url || '')}">
+            <label>Video (opcional)</label>
+            <div class="video-row">
+              <input type="text" data-field="video_url" value="${escapeAttr(item.video_url || '')}" placeholder="URL o subí un archivo →">
+              <label class="small-upload" title="Subir video">
+                🎥
+                <input type="file" accept="video/*" data-role="video-file" hidden>
+              </label>
+            </div>
           </div>
           <div class="span-2 row-actions">
             <label class="sold-checkbox">
@@ -199,28 +226,70 @@
       renderItems();
     });
 
-    row.querySelector('[data-role="file"]').addEventListener('change', async (e) => {
+    // Add one or more photos to this item's gallery.
+    row.querySelector('[data-role="add-photos"]').addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      const item = items.find((it) => it.id === id);
+      let nextOrder = sortedPhotos(item).reduce((max, p) => Math.max(max, p.sort_order || 0), -1) + 1;
+      let uploaded = 0;
+      for (const file of files) {
+        status.textContent = `Subiendo foto ${uploaded + 1} de ${files.length}…`;
+        const ext = file.name.split('.').pop();
+        const path = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+        const { error: uploadError } = await sb.storage.from('garage-sale-media').upload(path, file);
+        if (uploadError) {
+          status.textContent = `Error subiendo: ${friendlyError(uploadError)}`;
+          continue;
+        }
+        const { data: pub } = sb.storage.from('garage-sale-media').getPublicUrl(path);
+        const { error: insertError } = await sb
+          .from('item_photos')
+          .insert({ item_id: id, url: pub.publicUrl, sort_order: nextOrder });
+        if (insertError) {
+          status.textContent = `Error guardando foto: ${friendlyError(insertError)}`;
+          continue;
+        }
+        nextOrder++;
+        uploaded++;
+      }
+      if (uploaded === files.length) status.textContent = `✔ ${uploaded} foto(s) agregada(s)`;
+      await loadItems();
+    });
+
+    // Remove a single photo from the gallery (event delegation — thumbs
+    // are re-rendered on every loadItems() call).
+    row.querySelector('[data-role="photos-strip"]').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-role="remove-photo"]');
+      if (!btn) return;
+      if (!confirm('¿Eliminar esta foto?')) return;
+      const photoId = btn.closest('.photo-thumb').dataset.photoId;
+      const { error } = await sb.from('item_photos').delete().eq('id', photoId);
+      if (error) {
+        status.textContent = `Error: ${friendlyError(error)}`;
+        return;
+      }
+      await loadItems();
+    });
+
+    row.querySelector('[data-role="video-file"]').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      status.textContent = 'Subiendo…';
+      status.textContent = 'Subiendo video…';
       const ext = file.name.split('.').pop();
-      const path = `${id}-${Date.now()}.${ext}`;
-      const { error: uploadError } = await sb.storage
-        .from('garage-sale-media')
-        .upload(path, file, { upsert: true });
+      const path = `${id}-video-${Date.now()}.${ext}`;
+      const { error: uploadError } = await sb.storage.from('garage-sale-media').upload(path, file);
       if (uploadError) {
         status.textContent = `Error subiendo: ${friendlyError(uploadError)}`;
         return;
       }
       const { data: pub } = sb.storage.from('garage-sale-media').getPublicUrl(path);
-      const isVideo = file.type.startsWith('video/');
-      const field = isVideo ? 'video_url' : 'image_url';
-      const { error: updateError } = await sb.from('items').update({ [field]: pub.publicUrl }).eq('id', id);
+      const { error: updateError } = await sb.from('items').update({ video_url: pub.publicUrl }).eq('id', id);
       if (updateError) {
-        status.textContent = `Error guardando URL: ${friendlyError(updateError)}`;
+        status.textContent = `Error guardando video: ${friendlyError(updateError)}`;
         return;
       }
-      status.textContent = '✔ Archivo subido';
+      status.textContent = '✔ Video subido';
       await loadItems();
     });
   }

@@ -49,11 +49,42 @@
     `;
   }
 
-  function mediaBlock(item) {
-    if (item.image_url) {
-      return `<img class="item-photo" src="${item.image_url}" alt="${escapeHtml(item.name)}" loading="lazy">`;
+  function photosFor(item) {
+    if (item.item_photos && item.item_photos.length) {
+      return item.item_photos
+        .slice()
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((p) => p.url);
     }
-    return placeholderMedia(item.category);
+    // Back-compat: items created before the gallery feature may only have
+    // the single legacy image_url column set.
+    if (item.image_url) return [item.image_url];
+    return [];
+  }
+
+  function mediaBlock(item) {
+    const photos = photosFor(item);
+    if (!photos.length) return placeholderMedia(item.category);
+
+    const arrows =
+      photos.length > 1
+        ? `<button type="button" class="carousel-arrow prev" aria-label="Foto anterior">‹</button>
+           <button type="button" class="carousel-arrow next" aria-label="Foto siguiente">›</button>`
+        : '';
+    const dots =
+      photos.length > 1
+        ? `<div class="carousel-dots">${photos
+            .map((_, i) => `<span class="dot ${i === 0 ? 'active' : ''}"></span>`)
+            .join('')}</div>`
+        : '';
+
+    return `
+      <div class="carousel" data-photos='${escapeHtml(JSON.stringify(photos))}' data-index="0">
+        <img class="item-photo" src="${photos[0]}" alt="${escapeHtml(item.name)}" loading="lazy">
+        ${arrows}
+        ${dots}
+      </div>
+    `;
   }
 
   function videoBlock(item) {
@@ -139,7 +170,7 @@
     grid.innerHTML = '<p class="loading">Cargando artículos… 📦</p>';
     try {
       const res = await fetch(
-        `${cfg.SUPABASE_URL}/rest/v1/items?select=*&order=sort_order.asc`,
+        `${cfg.SUPABASE_URL}/rest/v1/items?select=*,item_photos(url,sort_order)&order=sort_order.asc&item_photos.order=sort_order.asc`,
         {
           headers: {
             apikey: cfg.SUPABASE_ANON_KEY,
@@ -156,6 +187,27 @@
       grid.innerHTML = `<p class="loading">No pudimos cargar los artículos. Probá recargar la página. 🙏</p>`;
     }
   }
+
+  // Event delegation for the photo carousels — survives grid.innerHTML
+  // re-renders on category filter changes, unlike per-card listeners.
+  grid.addEventListener('click', (e) => {
+    const control = e.target.closest('.carousel-arrow, .dot');
+    if (!control) return;
+    const carousel = control.closest('.carousel');
+    if (!carousel) return;
+    const photos = JSON.parse(carousel.dataset.photos);
+    let index = Number(carousel.dataset.index || 0);
+    if (control.classList.contains('prev')) {
+      index = (index - 1 + photos.length) % photos.length;
+    } else if (control.classList.contains('next')) {
+      index = (index + 1) % photos.length;
+    } else if (control.classList.contains('dot')) {
+      index = Array.from(control.parentElement.children).indexOf(control);
+    }
+    carousel.dataset.index = index;
+    carousel.querySelector('.item-photo').src = photos[index];
+    carousel.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === index));
+  });
 
   generalWhatsappLinks.forEach((el) => {
     el.href = `https://wa.me/${cfg.WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola! Te escribo por el Garage Sale 🙂')}`;

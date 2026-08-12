@@ -112,15 +112,66 @@
     margin-bottom: 1rem;
     box-shadow: 0 4px 10px rgba(0,0,0,0.12);
     display: grid;
-    grid-template-columns: 130px 1fr;
+    grid-template-columns: 160px 1fr;
     gap: 1rem;
   }
-  .item-row .thumb-col { display: flex; flex-direction: column; gap: 0.5rem; align-items: center; }
-  .item-row img.thumb, .item-row .thumb-placeholder {
-    width: 120px; height: 90px; object-fit: cover; border-radius: 6px; background: #ece0c6;
-    display: flex; align-items: center; justify-content: center; font-size: 2rem;
+  .photos-col { display: flex; flex-direction: column; gap: 0.5rem; }
+  .photos-strip { display: flex; flex-wrap: wrap; gap: 0.35rem; max-width: 160px; }
+  .photo-thumb {
+    position: relative;
+    width: 62px;
+    height: 50px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: #ece0c6;
   }
-  .item-row input[type=file] { font-size: 0.75rem; max-width: 130px; }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-remove {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 0.6rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .thumb-placeholder {
+    width: 62px; height: 50px; object-fit: cover; border-radius: 6px; background: #ece0c6;
+    display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+  }
+  .add-photo-btn {
+    display: inline-block;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: #ece0c6;
+    color: var(--brown);
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .video-row { display: flex; gap: 0.4rem; align-items: center; }
+  .video-row input[type=text] { flex: 1; }
+  .small-upload {
+    background: #ece0c6;
+    color: var(--brown);
+    padding: 0.45rem 0.6rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
   .fields label { display: block; font-size: 0.75rem; font-weight: 600; color: #7a6a52; margin-bottom: 0.2rem; }
   .fields input, .fields select, .fields textarea {

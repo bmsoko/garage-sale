@@ -41,13 +41,20 @@ Proyecto: **garage-sale** (org `bmsoko`, región `sa-east-1`).
   hace desde el **Table Editor** de Supabase Studio (o con la `service_role`
   key desde un script, nunca desde el navegador).
 - Columnas de `items`: `sort_order`, `name`, `category`, `description`,
-  `condition`, `price`, `currency`, `image_url`, `video_url`,
-  `whatsapp_number` (opcional, para pisar el número general en un artículo
-  puntual), `is_sold`.
+  `condition`, `price`, `currency`, `image_url` (legado, ver abajo),
+  `video_url`, `whatsapp_number` (opcional, para pisar el número general en
+  un artículo puntual), `is_sold`.
+- Tabla `public.item_photos` — **galería de fotos por artículo** (relación
+  uno-a-muchos): `item_id` (FK a `items`, `on delete cascade`), `url`,
+  `sort_order`. Mismo esquema de RLS que `items`: lectura pública, escritura
+  solo para `is_admin()`. La columna `items.image_url` queda como legado —
+  al crear la tabla se migró automáticamente cada foto existente a
+  `item_photos` como su primera foto, así que ningún artículo perdió su
+  imagen. El sitio y el panel usan `item_photos` como fuente de verdad; si
+  un artículo no tiene ninguna fila en `item_photos` pero sí `image_url`
+  (dato viejo), se muestra igual como fallback.
 - Bucket de Storage público **`garage-sale-media`** para fotos y videos.
-- Ya hay 10 artículos de ejemplo cargados (bicicletas, muebles, auto
-  eléctrico) con `image_url = null` — el sitio muestra un placeholder
-  ilustrado ("Foto próximamente") hasta que subas la foto real.
+- 10 artículos de ejemplo cargados (bicicletas, muebles, auto eléctrico).
 
 ### Cómo subir fotos, agregar o editar artículos
 
@@ -78,9 +85,16 @@ email autorizada y (b) que ese email esté en la lista blanca de la base.
 1. Andá a `/admin/`, escribí tu email → **"Enviarme el link mágico"**.
 2. Abrí el email y hacé clic en el link — te vuelve a `/admin/` ya logueado.
 3. Vas a ver la lista de artículos, cada uno editable inline: nombre,
-   categoría, precio, estado, descripción, orden, `video_url`, y un
-   checkbox de "Vendido". Subís foto o video con el selector de archivo
-   junto a la miniatura — se sube al bucket y actualiza el artículo solo.
+   categoría, precio, estado, descripción, orden, video, y un checkbox de
+   "Vendido".
+   - **Fotos (varias por artículo):** tirita de miniaturas a la izquierda.
+     **"+ Agregar fotos"** permite elegir varios archivos a la vez — se
+     suben todos y se agregan al final de la galería. Cada miniatura tiene
+     una ✕ para borrarla individualmente. El sitio público muestra la
+     primera foto con flechas/puntitos para pasar a las siguientes cuando
+     hay más de una.
+   - **Video (uno solo):** pegá una URL directamente o subí un archivo con
+     el botón 🎥 junto al campo — se sube y completa la URL solo.
 4. **"+ Nuevo artículo"** crea una fila en blanco para completar.
 5. **"Cerrar sesión"** desloguea; también se desloguea solo a los 20
    minutos de inactividad.
