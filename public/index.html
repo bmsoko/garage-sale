@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Garage Sale Córdoba</title>
+<meta name="description" content="Garage Sale en Córdoba, Argentina: bicicletas, muebles, auto eléctrico para niños y más. Consultá por WhatsApp.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --kraft: #d9bd8c;
+    --kraft-dark: #c6a672;
+    --paper: #fbf4e4;
+    --ink: #2e2013;
+    --brown: #5a3a22;
+    --red: #d64541;
+    --yellow: #f4b942;
+    --green-whatsapp: #25d366;
+    --green-whatsapp-dark: #1ebe5b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    color: var(--ink);
+    background-color: var(--kraft);
+    background-image:
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.035) 0, rgba(255,255,255,0.035) 2px, transparent 2px, transparent 14px),
+      radial-gradient(circle at 20% 10%, rgba(255,255,255,0.15), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(0,0,0,0.08), transparent 45%);
+  }
+
+  a { color: inherit; }
+
+  /* ---------- Header ---------- */
+  header.hero {
+    padding: 3rem 1rem 4rem;
+    text-align: center;
+    position: relative;
+  }
+
+  .sign {
+    display: inline-block;
+    background: var(--paper);
+    padding: 1.5rem 2.5rem;
+    border-radius: 6px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    transform: rotate(-2deg);
+    position: relative;
+  }
+
+  .sign::before, .sign::after {
+    content: '';
+    position: absolute;
+    width: 46px;
+    height: 22px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  .sign::before { top: -12px; left: 10px; transform: rotate(-8deg); }
+  .sign::after { top: -12px; right: 10px; transform: rotate(6deg); }
+
+  .sign h1 {
+    font-family: 'Permanent Marker', cursive;
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    color: var(--red);
+    margin: 0;
+    line-height: 1;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.08);
+  }
+
+  .sign p {
+    font-family: 'Permanent Marker', cursive;
+    font-size: clamp(1rem, 3vw, 1.4rem);
+    color: var(--brown);
+    margin: 0.5rem 0 0;
+  }
+
+  .hero-sub {
+    margin-top: 1.4rem;
+    font-size: 1.05rem;
+    color: var(--brown);
+    font-weight: 500;
+  }
+
+  .contact-general {
+    margin-top: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--green-whatsapp);
+    color: #fff;
+    font-weight: 700;
+    padding: 0.75rem 1.4rem;
+    border-radius: 50px;
+    text-decoration: none;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .contact-general:hover { background: var(--green-whatsapp-dark); transform: translateY(-2px); }
+
+  /* ---------- Filters ---------- */
+  #filter-bar {
+    max-width: 1100px;
+    margin: 0 auto 2rem;
+    padding: 0 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+  }
+
+  .filter-pill {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 50px;
+    border: 2px solid var(--brown);
+    background: var(--paper);
+    color: var(--brown);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .filter-pill.active, .filter-pill:hover {
+    background: var(--brown);
+    color: var(--paper);
+  }
+
+  /* ---------- Grid ---------- */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1rem 4rem;
+  }
+
+  #items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 2rem;
+  }
+
+  .loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--brown);
+    padding: 2rem;
+  }
+
+  #empty-state {
+    text-align: center;
+    color: var(--brown);
+    padding: 2rem;
+    font-weight: 600;
+  }
+
+  /* ---------- Card ---------- */
+  .item-card {
+    background: var(--paper);
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: rotate(var(--rotate, 0deg));
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+  }
+  .item-card:hover {
+    transform: rotate(0deg) scale(1.02);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.25);
+  }
+  .item-card.is-sold { filter: grayscale(0.4); }
+
+  .sold-stamp {
+    position: absolute;
+    top: 1rem;
+    left: -0.5rem;
+    background: var(--red);
+    color: #fff;
+    font-family: 'Permanent Marker', cursive;
+    padding: 0.35rem 1.5rem;
+    transform: rotate(-12deg);
+    z-index: 3;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    letter-spacing: 1px;
+  }
+
+  .item-media {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: #ece0c6;
+  }
+
+  .item-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .media-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: repeating-linear-gradient(135deg, #ece0c6, #ece0c6 10px, #e3d5b3 10px, #e3d5b3 20px);
+    color: var(--brown);
+  }
+  .media-placeholder-icon { font-size: 3rem; }
+  .media-placeholder-tag {
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.7);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+  }
+
+  .price-tag {
+    position: absolute;
+    top: 0.8rem;
+    right: -0.4rem;
+    background: var(--yellow);
+    color: var(--ink);
+    font-weight: 800;
+    font-size: 1.05rem;
+    padding: 0.4rem 1rem 0.4rem 1.4rem;
+    border-radius: 3px 8px 8px 3px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    transform: rotate(4deg);
+  }
+  .price-tag-hole {
+    position: absolute;
+    left: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 7px;
+    height: 7px;
+    background: var(--paper);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+  }
+
+  .item-body {
+    padding: 1rem 1.1rem 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+  }
+
+  .item-name {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--brown);
+  }
+
+  .condition-badge {
+    align-self: flex-start;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.25rem 0.65rem;
+    border-radius: 50px;
+  }
+  .badge-nuevo { background: #d7f2dd; color: #1e7d3a; }
+  .badge-muybueno { background: #d9ebfa; color: #145da0; }
+  .badge-bueno { background: #fbe8c6; color: #8a5a10; }
+  .badge-normal { background: #ececec; color: #555; }
+
+  .item-desc {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #4a3a28;
+  }
+
+  .item-video {
+    width: 100%;
+    border-radius: 6px;
+    margin-top: 0.3rem;
+    background: #000;
+  }
+
+  .whatsapp-btn {
+    margin: 0.9rem;
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: var(--green-whatsapp);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 0.7rem 1rem;
+    border-radius: 50px;
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .whatsapp-btn:hover { background: var(--green-whatsapp-dark); transform: translateY(-2px); }
+
+  /* ---------- Footer ---------- */
+  footer {
+    text-align: center;
+    padding: 2rem 1rem 3rem;
+    color: var(--brown);
+    font-size: 0.9rem;
+  }
+  footer .footer-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.4rem;
+    color: var(--brown);
+    margin-bottom: 0.4rem;
+  }
+
+  @media (max-width: 480px) {
+    .sign { padding: 1.2rem 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="sign">
+    <h1>¡GARAGE SALE!</h1>
+    <p>Bicicletas · Muebles · Y más</p>
+  </div>
+  <p class="hero-sub">📍 Córdoba Capital, Argentina &nbsp;·&nbsp; Consultá por cada artículo, retiro a coordinar</p>
+  <a class="contact-general" data-whatsapp-general href="#" target="_blank" rel="noopener">
+    💬 Escribinos por WhatsApp
+  </a>
+</header>
+
+<nav id="filter-bar" aria-label="Filtrar por categoría"></nav>
+
+<main>
+  <div id="items-grid">
+    <p class="loading">Cargando artículos… 📦</p>
+  </div>
+  <p id="empty-state" hidden>No hay artículos en esta categoría por ahora.</p>
+</main>
+
+<footer>
+  <div class="footer-title">¡Gracias por pasar! 🧡</div>
+  <p id="site-name-wrap">
+    <span id="site-name">Garage Sale Córdoba</span> — Los precios están en pesos argentinos (ARS) y son orientativos, ¡animate a preguntar!
+  </p>
+</footer>
+
+<script src="/config.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

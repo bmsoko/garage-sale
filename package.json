@@ -1,0 +1,16 @@
+{
+  "name": "garage-sale-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sitio de garage sale (Córdoba, Argentina) - listado de artículos con fotos, estado y contacto por WhatsApp. Datos servidos desde Supabase.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
