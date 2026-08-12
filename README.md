@@ -19,10 +19,14 @@ foto, estado y un botón de WhatsApp para consultar por ese artículo puntual.
 
 ```
 .
-├── server.js          # Server Express: sirve /public y genera /config.js
+├── server.js             # Server Express: helmet (headers de seguridad),
+│                          # sirve /public y genera /config.js
 ├── public/
-│   ├── index.html      # Página única (hero + grilla de artículos + footer)
-│   └── app.js           # Fetch a Supabase + render de tarjetas + filtros
+│   ├── index.html         # Vidriera pública (hero + grilla + footer)
+│   ├── app.js               # Fetch a Supabase + render de tarjetas + filtros
+│   └── admin/
+│       ├── index.html       # Panel de administración (login + dashboard)
+│       └── app.js             # Login por magic link + CRUD de artículos
 ├── railway.json         # Config de build/deploy para Railway
 └── package.json
 ```
@@ -45,21 +49,68 @@ Proyecto: **garage-sale** (org `bmsoko`, región `sa-east-1`).
   eléctrico) con `image_url = null` — el sitio muestra un placeholder
   ilustrado ("Foto próximamente") hasta que subas la foto real.
 
-### Cómo subir fotos reales (sin tocar código)
+### Cómo subir fotos, agregar o editar artículos
 
-1. En Supabase Studio → **Storage** → bucket `garage-sale-media` → subí la
-   foto (o video) del artículo.
-2. Copiá la URL pública del archivo (botón "Copy URL" o `Get URL`).
-3. En **Table Editor** → tabla `items` → pegá esa URL en la columna
-   `image_url` (o `video_url`) de la fila correspondiente.
-4. Listo — no hace falta redeploy, el sitio la muestra al instante porque
-   lee la tabla en cada visita.
+**Forma recomendada — panel de administración (`/admin`)**, ver la sección
+siguiente. Subís la foto y editás precio/estado/descripción desde el
+navegador, sin tocar Supabase Studio.
 
-### Cómo agregar, editar o borrar un artículo
+**Alternativa — directo en Supabase Studio**, siempre disponible como
+respaldo (por ejemplo si no tenés a mano el link mágico):
 
-Todo desde **Table Editor → items** en Supabase Studio: agregar una fila
-nueva, cambiar precio/estado/descripción, o marcar `is_sold = true` cuando
-se vende (la tarjeta queda tachada con un sello "VENDIDO" pero visible).
+1. **Storage** → bucket `garage-sale-media` → subí la foto o video.
+2. Copiá la URL pública del archivo (botón "Copy URL" / "Get URL").
+3. **Table Editor** → tabla `items` → pegá esa URL en `image_url` (o
+   `video_url`) de la fila correspondiente. Ahí mismo podés cambiar
+   precio, estado, descripción, `is_sold`, o borrar/insertar filas.
+4. No hace falta redeploy — el sitio lee la tabla en cada visita.
+
+## Panel de administración (`/admin`)
+
+URL: `https://<tu-dominio-de-railway>/admin/`
+
+Login sin contraseña (magic link por email) + control de acceso por
+Row Level Security en la base — no por ocultar la URL. Aunque alguien
+adivine `/admin`, no puede escribir nada sin (a) acceso a la casilla de
+email autorizada y (b) que ese email esté en la lista blanca de la base.
+
+**Cómo entrar:**
+1. Andá a `/admin/`, escribí tu email → **"Enviarme el link mágico"**.
+2. Abrí el email y hacé clic en el link — te vuelve a `/admin/` ya logueado.
+3. Vas a ver la lista de artículos, cada uno editable inline: nombre,
+   categoría, precio, estado, descripción, orden, `video_url`, y un
+   checkbox de "Vendido". Subís foto o video con el selector de archivo
+   junto a la miniatura — se sube al bucket y actualiza el artículo solo.
+4. **"+ Nuevo artículo"** crea una fila en blanco para completar.
+5. **"Cerrar sesión"** desloguea; también se desloguea solo a los 20
+   minutos de inactividad.
+
+**Cómo funciona la seguridad (resumen técnico):**
+- Auth por **magic link de Supabase Auth** (`signInWithOtp`) — nunca hay
+  una contraseña que gestionar ni que se pueda filtrar.
+- Cualquier email puede *pedir* un link (no hace falta deshabilitar el
+  registro), pero solo puede *escribir* datos el email que esté en la
+  tabla `public.admins` — hoy solo `sokobruno@gmail.com`.
+- Esa verificación la hace una función Postgres `is_admin()` con
+  `security definer`, referenciada desde policies de RLS en `items` y en
+  `storage.objects` (bucket `garage-sale-media`). La tabla `admins` en sí
+  tiene RLS sin policies — no es legible por la API pública, solo por la
+  función.
+- El frontend usa la misma clave pública/`anon` que el sitio público —
+  no hay ninguna clave secreta en el navegador. El control de acceso es
+  100% de la base de datos, no del cliente.
+- Headers de seguridad (via `helmet` en `server.js`): CSP restrictiva
+  (solo permite los orígenes que el sitio realmente usa: Google Fonts,
+  jsDelivr para `supabase-js`, y el propio proyecto de Supabase),
+  `frame-ancestors 'none'` (anti-clickjacking), HSTS, sin sniffing de
+  MIME. `/admin` además manda `X-Robots-Tag: noindex` para no aparecer
+  en buscadores.
+
+**Para agregar otro administrador** (por ejemplo si querés que alguien
+más gestione el sitio): en Supabase Studio → **Table Editor** → tabla
+`admins` → **Insert row** → pegá su email. No requiere redeploy ni tocar
+código — la próxima vez que esa persona pida un link mágico, ya puede
+escribir.
 
 ## Variables de entorno (Railway)
 
@@ -108,8 +159,16 @@ npm start
 
 - **Separación de datos y código:** los artículos viven en Supabase, no en
   el HTML — agregar/editar/marcar vendido no requiere redeploy.
-- **RLS por defecto:** la tabla solo permite lectura pública; cualquier
-  escritura requiere la `service_role` key (nunca expuesta al navegador).
+- **RLS como única puerta de escritura:** ni el sitio público ni el panel
+  de administración tienen la `service_role` key (nunca expuesta al
+  navegador) — todo insert/update/delete pasa por policies de Postgres
+  que verifican `is_admin()`.
+- **Sin contraseñas:** el admin entra por magic link de Supabase Auth,
+  nada que filtrar ni rotar.
+- **Allow-list explícita en la base** (`public.admins`), no una lista de
+  emails hardcodeada en el frontend — se administra desde Table Editor.
+- **Headers de seguridad** (`helmet`): CSP restrictiva, HSTS,
+  anti-clickjacking, `noindex` en `/admin`.
 - **Sin build step:** HTML/CSS/JS plano + Express estático → deploy rápido
   y sin fricción en Railway.
 - **Config vía env vars con defaults sensatos:** se puede migrar de
